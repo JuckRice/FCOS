@@ -4,18 +4,28 @@ dataset:
   json_folder: "../data"
 
 model:
-  backbone: resnet34
-  fpn_feats_dim: 128
+  # backbone: resnet34
+  # fpn_feats_dim: 128
+  backbone: resnet152
+  backbone_out_feats_dims: [512, 1024, 2048]
+  fpn_feats_dim: 256
+
+input:
+  img_min_size: [736, 768, 800]
+  img_max_size: 1024
 
 loader:
-  batch_size: 8
-  num_workers: 4
+  batch_size: 4
+  num_workers: 8
 
 opt:
   # 1x schedule: mAP@IoU=0.5 ~61%
-  warmup_epochs: 3
-  epochs: 10
-  learning_rate: 0.01
+  warmup_epochs: 5
+  epochs: 200
+  learning_rate: 0.005
+
+test_cfg:
+  score_threshold: 0.05
   
 
 # other parameters can be specified in this yaml file

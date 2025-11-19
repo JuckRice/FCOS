@@ -88,6 +88,109 @@ class RandomHorizontalFlip(T.RandomHorizontalFlip):
         return image, target
 
 
+class RandomColorJitter(T.ColorJitter):
+    """
+    Randomly change the brightness, contrast, saturation and hue of an image.
+    """
+
+    def forward(self, image, target):
+        image = super().forward(image)
+        return image, target
+    
+
+class RandomResizedCrop(T.RandomResizedCrop):
+    """
+    Random resized crop of the image and boxes.
+    
+    This class mimics the interface of RandomHorizontalFlip by accepting
+    both image and target, and correctly transforming the bounding boxes.
+    """
+
+    def __init__(self, size, scale=(0.08, 1.0), ratio=(3. / 4., 4. / 3.), interpolation=F.InterpolationMode.BILINEAR):
+        """
+        Args:
+            size (int or sequence): desired output size.
+            scale (tuple of float): range of size of the origin size cropped
+            ratio (tuple of float): range of aspect ratio of the origin aspect ratio cropped
+            interpolation (InterpolationMode): Desired interpolation.
+        """
+        super().__init__(size=size, scale=scale, ratio=ratio, interpolation=interpolation)
+
+    def forward(self, image, target):
+        """
+        Args:
+            image (PIL Image or Tensor): Image to be cropped and resized.
+            target (dict): The target annotations.
+
+        Returns:
+            Tuple: tuple (image, target)
+        """
+        
+        i, j, h, w = self.get_params(image, self.scale, self.ratio)
+
+        transformed_image = F.resized_crop(image, i, j, h, w, self.size, self.interpolation)
+
+        if target is not None:
+            boxes = target["boxes"] # [N, 4] (x1, y1, x2, y2)
+            
+            if boxes.shape[0] == 0:
+                return transformed_image, target
+
+            crop_x1 = j
+            crop_y1 = i
+            crop_x2 = j + w
+            crop_y2 = i + h
+            crop_window = torch.tensor([crop_x1, crop_y1, crop_x2, crop_y2], device=boxes.device, dtype=boxes.dtype)
+
+            inter_x1 = torch.max(boxes[:, 0], crop_window[0])
+            inter_y1 = torch.max(boxes[:, 1], crop_window[1])
+            inter_x2 = torch.min(boxes[:, 2], crop_window[2])
+            inter_y2 = torch.min(boxes[:, 3], crop_window[3])
+
+            inter_w = inter_x2 - inter_x1
+            inter_h = inter_y2 - inter_y1
+            keep = (inter_w > 0) & (inter_h > 0)
+            
+            if not keep.any():
+                target["boxes"] = torch.empty((0, 4), device=boxes.device, dtype=boxes.dtype)
+                target["labels"] = torch.empty((0,), device=target["labels"].device, dtype=target["labels"].dtype)
+                return transformed_image, target
+
+            boxes = boxes[keep]
+            target["labels"] = target["labels"][keep]
+            
+            clipped_boxes = torch.stack([
+                inter_x1[keep], inter_y1[keep], inter_x2[keep], inter_y2[keep]
+            ], dim=1)
+
+            clipped_boxes[:, 0::2] = clipped_boxes[:, 0::2] - crop_x1
+            clipped_boxes[:, 1::2] = clipped_boxes[:, 1::2] - crop_y1
+
+            if isinstance(self.size, int):
+                new_h = self.size
+                new_w = self.size
+            else:
+                new_h, new_w = self.size
+
+            scale_x = new_w / w
+            scale_y = new_h / h
+
+            clipped_boxes[:, 0] = clipped_boxes[:, 0] * scale_x
+            clipped_boxes[:, 1] = clipped_boxes[:, 1] * scale_y
+            clipped_boxes[:, 2] = clipped_boxes[:, 2] * scale_x
+            clipped_boxes[:, 3] = clipped_boxes[:, 3] * scale_y
+            
+            scaled_w = clipped_boxes[:, 2] - clipped_boxes[:, 0]
+            scaled_h = clipped_boxes[:, 3] - clipped_boxes[:, 1]
+            min_size = 1.0 
+            keep_final = (scaled_w > min_size) & (scaled_h > min_size)
+
+            target["boxes"] = clipped_boxes[keep_final]
+            target["labels"] = target["labels"][keep_final]
+
+        return transformed_image, target
+
+
 class ToTensor(nn.Module):
     """
     Convert an image (PIL or np.array) to tensor.

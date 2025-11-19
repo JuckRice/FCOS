@@ -8,7 +8,7 @@ import torchvision
 from torch.utils.data import DataLoader
 import torchvision.transforms as T
 
-from .transforms import Compose, ConvertAnnotations, RandomHorizontalFlip, ToTensor
+from .transforms import Compose, ConvertAnnotations, RandomHorizontalFlip, RandomColorJitter, RandomResizedCrop, ToTensor
 
 
 def trivial_batch_collator(batch):
@@ -84,7 +84,11 @@ def build_dataset(name, split, img_folder, json_folder):
         return None
 
     if is_training:
-        transforms = Compose([ConvertAnnotations(), RandomHorizontalFlip(), ToTensor()])
+        transforms = Compose([ConvertAnnotations(), 
+                              RandomColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+                              RandomHorizontalFlip(), 
+                              RandomResizedCrop(size=(800, 800), scale=(0.1, 1.0)),
+                              ToTensor()])
     else:
         transforms = Compose([ConvertAnnotations(), ToTensor()])
 

@@ -1,0 +1,40 @@
+output_folder: "../logs/coco_fcos_results"
+dataset:
+  name: "COCO"
+  train: "train2017"
+  test: "val2017"
+  img_folder: "../data/COCO"
+  json_folder: "../data/COCO/annotations_trainval2017"
+
+model:
+  backbone: resnet18
+  fpn_feats_dim: 128
+  num_classes: 80
+  # backbone: resnet152
+  # backbone_out_feats_dims: [512, 1024, 2048]
+  # fpn_feats_dim: 256
+
+input:
+  img_min_size: [736, 768, 800]
+  img_max_size: 800
+
+loader:
+  batch_size: 4
+  num_workers: 4
+
+opt:
+  # 1x schedule: mAP@IoU=0.5 ~61%
+  warmup_epochs: 1
+  epochs: 3
+  learning_rate: 0.005
+
+test_cfg:
+  score_threshold: 0.07
+  
+
+# other parameters can be specified in this yaml file
+# e.g. the following lines will reset the number of training epochs to 8
+#opt:
+#  epochs: 8
+
+# see config.py for more details

@@ -70,9 +70,16 @@ def main(args):
     del checkpoint
 
     # set up evaluator
-    gt_json_file = os.path.join(
-        cfg["dataset"]["json_folder"], cfg["dataset"]["test"] + ".json"
-    )
+    if cfg["dataset"]["name"] == "COCO":
+        # instances_val2017.json
+        gt_json_file = os.path.join(
+            cfg["dataset"]["json_folder"], "instances_" + cfg["dataset"]["test"] + ".json"
+        )
+    else:
+        # test.json
+        gt_json_file = os.path.join(
+            cfg["dataset"]["json_folder"], cfg["dataset"]["test"] + ".json"
+        )
     output_file = os.path.join(os.path.split(ckpt_file)[0], "eval_results.json")
 
     """5. Test the model"""
